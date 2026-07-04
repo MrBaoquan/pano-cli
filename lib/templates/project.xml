@@ -1,0 +1,23 @@
+<!--
+    project.xml — 项目自定义逻辑
+    此文件不会被 pano upgrade 覆盖，可安全编辑。
+    在此添加项目特定的 action、layer、style、hotspot 样式等。
+-->
+<krpano>
+
+	<!-- ═══ 辅助 action ═══ -->
+
+	<!-- 隐藏导航栏 -->
+	<action name="hide_skin_nav">
+		tween(layer[skin_layer].alpha, 0, 0.3, linear, set(layer[skin_layer].visible,false));
+	</action>
+
+	<!-- 显示导航栏 -->
+	<action name="show_skin_nav">
+		set(layer[skin_layer].visible, true);
+		tween(layer[skin_layer].alpha, 1, 0.3);
+	</action>
+
+	<!-- ═══ 在下方添加你的自定义内容 ═══ -->
+
+</krpano>

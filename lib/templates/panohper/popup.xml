@@ -1,0 +1,248 @@
+﻿<krpano>
+
+<plugin name="pp_blur" devices="html5" keep="true"
+url="plugins/pp_blur.js"
+enabled="true"
+range="0.0"
+quality="10"
+linearrgb="false"
+mirroredges="false"
+order="1"
+/>
+
+<action name="panohper_popup_init" autorun="preinit">
+if(panohper_base == null, set(panohper_base, ''));
+</action>
+
+<action name="popup" scope="private:POPUP" args="pid,image_url,scroll_dir">
+def(randomid,string,get(pid));
+
+txtadd(rawcallerid,'rawcaller#',get(pid));
+copy(get(rawcallerid),caller);
+
+txtadd(popupid,'popup','#',get(randomid));
+txtadd(loadingid,'loading','#',get(randomid));
+txtadd(bgouterid,'bgouter','#',get(randomid));
+txtadd(popupviewid,'popupview','#',get(randomid));
+txtadd(scrollareaid,'scrollarea','#',get(randomid));
+txtadd(imgcontentid,'imgcontent','#',get(randomid));
+txtadd(btncloseid,'btnclose','#',get(randomid));
+
+if(get(global.layer[get(popupid)]) EQ null,
+addlayer(get(popupid), popup);
+set(popup,
+type=container,
+width=100%,
+height=100%,
+bgcolor=0x000000,
+bgalpha=0.0,
+parentmaskchildren=false,
+bgcapture=true,
+visible=true,
+);
+
+addlayer(get(loadingid), loading);
+txtadd(loading_url, get(global.panohper_base), 'assets/loading/spinner.png');
+set(loading,
+url=get(loading_url),
+visible=true,
+align=center,
+parent=get(popupid),
+onloaded='do_crop_animation(64,64, 8);'
+);
+
+addlayer(get(bgouterid),bgouter);
+set(bgouter,
+type=container,
+parent=get(popupid),
+bgcolor=0xffffff,
+bgalpha=0.0,
+width=80%,
+height=80%,
+align=center
+);
+
+addlayer(get(popupviewid),popupview);
+set(popupview,
+type=container,
+parent=get(popupid),
+align=center,
+bgcolor=0x000000,
+bgalpha=0.5,
+capturechildren=true,
+parentmaskchildren=true
+);
+
+addplugin(get(scrollareaid),scrollarea);
+txtadd(scrollarea_url, get(global.panohper_base), 'plugins/scrollarea.js');
+set(scrollarea,
+url=get(scrollarea_url),
+parent=get(popupviewid),
+direction=h,
+draggable=true,
+capturechildren=true,
+parentmaskchildren=true,
+align=center,
+mwheel=true,
+onhover_autoscrolling=false,
+overscroll=1.0,
+friction=0.95,
+acceleration=0.08,
+returnacceleration=0.15,
+momentum=0.06,
+bgcolor=0x000000,
+bgalpha=1.0
+);
+
+addlayer(get(imgcontentid), imgcontent);
+set(imgcontent,
+type=image,
+parent=get(scrollareaid),
+align=center,
+url='',
+onloaded="onimageloaded();"
+);
+
+addlayer(get(btncloseid), btnclose);
+txtadd(btnclose_url, get(global.panohper_base), 'assets/icons/close.png');
+set(btnclose,
+type=image,
+parent=get(popupviewid),
+url=get(btnclose_url),
+align=righttop,
+y=15,
+x=10,
+zorder=50,
+scale=0.65,
+alpha=1.0,
+visible=false,
+test=get(popupid),
+onover="tween(alpha,1)",
+onout="tween(alpha,0.50)",
+onclick="popup_close();"
+);
+,
+copy(popup,global.layer[get(popupid)]);
+copy(loading,global.layer[get(loadingid)]);
+copy(bgouter,global.layer[get(bgouterid)]);
+copy(popupview,global.layer[get(popupviewid)]);
+copy(scrollarea,global.layer[get(scrollareaid)]);
+copy(imgcontent,global.layer[get(imgcontentid)]);
+copy(btnclose,global.layer[get(btncloseid)]);
+);
+
+set(popup.visible,true);
+
+ifnot(popup.loaded,
+tween(popup.bgalpha,0.3);
+set(bgouter.bgalpha,0);
+,
+if(get(image_url) !== imgcontent.url,
+set(loading.visible,true);
+tween(popup.bgalpha,0.3);
+set(bgouter.bgalpha,0);
+,
+tween(popup.bgalpha,0.7);
+set(bgouter.bgalpha,0.3);
+set(loading.visible,false);
+set(btnclose.visible,true);
+callwith(get(rawcallerid), onpopuped);
+);
+);
+
+set(scrollarea.direction,get(scroll_dir));
+set(imgcontent.url,get(image_url));
+
+tween(popup.alpha,1);
+tween(global.plugin[pp_blur].range, 40.0);
+</action>
+
+<action name="popup_close" scope="private:POPUP">
+def(popupid, string, get(caller.test));
+copy(popup, global.layer[get(popupid)]);
+tween(
+popup.alpha,
+0.0,
+0.5,
+linear,
+set(global.layer[get(popupid)].visible, false);
+);
+tween(global.plugin[pp_blur].range,0);
+hidetip();
+callwith(get(rawcallerid), onpopupclosed);
+</action>
+
+<action name="onimageloaded" scope="private:POPUP">
+tween(popup.bgalpha, 0.7);
+tween(bgouter.bgalpha, 0.3);
+
+if(get(global.stagewidth) GT 600,
+mul(img_maxwidth, get(global.stagewidth),0.85);
+mul(img_maxheight, get(global.stageheight),0.9);
+,
+mul(img_maxwidth, get(global.stagewidth),1.0);
+mul(img_maxheight, get(global.stageheight),1.0);
+);
+
+def(rawimagewidth,number, get(caller.imagewidth));
+def(rawimageheight,number, get(caller.imageheight));
+
+if(scrollarea.direction EQ "v",
+if(rawimagewidth GT img_maxwidth,
+div(w_scale,img_maxwidth,rawimagewidth);
+mul(r_width, rawimagewidth, w_scale);
+mul(r_height, rawimageheight, w_scale);
+set(scrollarea.width, get(r_width));
+set(scrollarea.height, get(r_height));
+set(imgcontent.width,-0.5);
+set(imgcontent.height, -0.5);
+Math.min(img_maxheight, r_height);
+set(popupview.width, get(img_maxwidth));
+set(popupview.height, get(img_maxheight));
+,
+Math.min(img_maxwidth,imgcontent.imagewidth);
+Math.min(img_maxheight,imgcontent.imageheight);
+set(popupview.width, get(img_maxwidth));
+set(popupview.height, get(img_maxheight));
+copy(scrollarea.width, imgcontent.imagewidth);
+copy(scrollarea.height, imgcontent.imageheight);
+);
+if(scrollarea.height GT calc(img_maxheight+100), showtip("v"));
+,
+if(imgcontent.imageheight GT img_maxheight,
+div(h_scale,img_maxheight, rawimageheight);
+mul(r_width, rawimagewidth, h_scale);
+mul(r_height, rawimageheight, h_scale);
+set(scrollarea.width, get(r_width));
+set(scrollarea.height, get(r_height));
+set(imgcontent.width,-0.5);
+set(imgcontent.height, -0.5);
+Math.min(img_maxwidth, r_width);
+set(popupview.width,get(img_maxwidth));
+set(popupview.height,get(img_maxheight));
+,
+copy(popupview.width, imgcontent.imagewidth);
+copy(popupview.height, imgcontent.imageheight);
+);
+if(scrollarea.width GT calc(img_maxwidth+100), showtip("h"));
+);
+
+set(loading.visible,false);
+set(btnclose.visible,true);
+
+set(outer_width, calc(popupview.width+20));
+add(outer_height, popupview.height,20);
+set(bgouter, width=get(outer_width), height=get(outer_height));
+
+sub(total_width, scrollarea.width, popupview.width);
+div(total_width,2);
+set(scrollarea.x,get(total_width));
+
+sub(total_height, scrollarea.height, popupview.height);
+div(total_height, 2);
+set(scrollarea.y, get(total_height));
+
+callwith(get(rawcallerid), onpopuped);
+</action>
+
+</krpano>

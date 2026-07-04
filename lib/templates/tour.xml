@@ -1,0 +1,73 @@
+<krpano version="1.20.11" title="Virtual Tour">
+
+	<!--
+	    tour.xml — 框架配置文件（由 pano-cli 管理，pano upgrade 时会覆盖）
+	    自定义逻辑请写在 main.xml 中，不要修改此文件。
+	-->
+
+	<!-- ═══ 框架组件 ═══ -->
+	<include url="panohper/utils.xml" />
+	<include url="panohper/popup.xml" />
+	<include url="panohper/videoplayer.xml" />
+	<include url="panohper/greenscreen_manager.xml" />
+	<include url="panohper/tips.xml" />
+
+	<!-- ═══ 皮肤 + 分组 ═══ -->
+	<include url="skin/vtourskin.xml" />
+	<include url="panohper/scene_groups.xml" />
+	<include url="skin/groups_data.xml" />
+	<include url="panohper/nav_styles.xml" />
+
+	<!-- ═══ 皮肤参数 ═══ -->
+	<skin_settings maps="false"
+	               gyro="true"
+	               webvr="true"
+	               autotour="false"
+	               littleplanetintro="false"
+	               title="true"
+	               thumbs="true"
+	               thumbs_width="120" thumbs_height="80" thumbs_padding="10" thumbs_crop="0|40|240|160"
+	               thumbs_opened="true"
+	               thumbs_text="true"
+	               thumbs_dragging="true"
+	               thumbs_onhoverscrolling="false"
+	               thumbs_scrollbuttons="false"
+	               thumbs_scrollindicator="false"
+	               thumbs_loop="false"
+	               tooltips_buttons="false"
+	               tooltips_thumbs="true"
+	               tooltips_hotspots="false"
+	               deeplinking="false"
+	               loadscene_flags="MERGE"
+	               loadscene_blend="OPENBLEND(0.5, 0.0, 0.75, 0.05, linear)"
+	               loadscene_blend_prev="SLIDEBLEND(0.5, 180, 0.75, linear)"
+	               loadscene_blend_next="SLIDEBLEND(0.5,   0, 0.75, linear)"
+	               loadingtext=""
+	               layout_width="100%"
+	               layout_maxwidth="1200"
+	               controlbar_width="-24"
+	               controlbar_height="40"
+	               controlbar_offset="20"
+	               controlbar_offset_closed="-40"
+	               controlbar_overlap.no-fractionalscaling="10"
+	               controlbar_overlap.fractionalscaling="0"
+	               design_skin_images="vtourskin.png"
+	               design_bgcolor="0x2D3E50"
+	               design_bgalpha="0.8"
+	               design_bgborder="0"
+	               design_bgroundedge="1"
+	               design_bgshadow="0 4 10 0x000000 0.3"
+	               design_thumbborder_bgborder="3 0xFFFFFF 1.0"
+	               design_thumbborder_padding="2"
+	               design_thumbborder_bgroundedge="0"
+	               design_text_css="color:#FFFFFF; font-family:Arial;"
+	               design_text_shadow="1"
+	               />
+
+	<!-- ═══ 场景数据（自动生成） ═══ -->
+	<include url="scenes.xml" />
+
+	<!-- ═══ 用户自定义逻辑（不会被 pano upgrade 覆盖） ═══ -->
+	<include url="main.xml" />
+
+</krpano>

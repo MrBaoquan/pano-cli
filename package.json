@@ -1,0 +1,38 @@
+{
+  "name": "@mrbaoquan/pano-cli",
+  "version": "2.5.1",
+  "description": "krpano 全景项目 CLI 工具 — 一键创建、构建、发布全景漫游",
+  "type": "module",
+  "bin": {
+    "pano": "bin/pano.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "krpano",
+    "panorama",
+    "360",
+    "virtual-tour",
+    "cli"
+  ],
+  "author": "qz-360",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^11.0.0",
+    "sharp": "^0.34.5"
+  }
+}

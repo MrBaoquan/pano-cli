@@ -1,0 +1,12 @@
+{
+    "krpanoToolsPath": "",
+    "panoSourceDir": "../panoramas",
+    "startScene": "",
+
+    "groups": [
+        { "name": "默认分组", "folders": ["default"] }
+    ],
+
+    "sceneOverrides": {
+    }
+}

@@ -1,0 +1,63 @@
+<krpano>
+
+	<!--
+	    导航 UI 样式覆盖
+	    注意：此文件必须在 skin/vtourskin.xml 之后 include，否则覆盖无效。
+	    在 tour.xml 中已通过 include 顺序保证。
+	-->
+
+	<!-- 热点样式：前进箭头序列帧动画 + 轻微透明反馈 -->
+	<style name="skin_hotspotstyle"
+	       url="%VIEWER%/panohper/assets/hotspots/arrow-advance.png"
+	       scale="0.5"
+	       distorted="false"
+	       label=""
+	       onloaded="skin_hotspotstyle_setup(); do_crop_animation(86,86,24);"
+	       onover.addevent="tween(alpha,0.8);"
+	       onout.addevent="tween(alpha,1.0);"
+	/>
+
+	<!-- 覆盖热点点击：去掉向上飞出的 tween，直接切换场景 -->
+	<action name="skin_hotspotstyle_click" scope="local">
+		if(isvalue(caller.linkedscene),
+			copy(hs_linkedscene, caller.linkedscene);
+			if(caller.linkedscene_lookat, txtsplit(caller.linkedscene_lookat, ',', hs_lookat_h, hs_lookat_v, hs_lookat_fov); );
+			set(caller.enabled, false);
+			skin_hidetooltips();
+			skin_loadscene(get(hs_linkedscene), get(skin_settings.loadscene_blend));
+			if(hs_lookat_h !== null, skin_lookat(get(hs_lookat_h), get(hs_lookat_v), get(hs_lookat_fov)); );
+			skin_updatescroll();
+		);
+	</action>
+
+	<!-- 覆盖热点 setup：tooltip + 永久场景名标签 -->
+	<action name="skin_hotspotstyle_setup" scope="local">
+		if(isvalue(caller.linkedscene),
+			copy(caller.tooltip, scene[get(caller.linkedscene)].title);
+			if(skin_settings.tooltips_hotspots, caller.loadstyle(skin_tooltips); );
+			callwith(caller, skin_hotspotstyle_addlabel());
+		);
+	</action>
+
+	<!-- 缩略图底部名称：半透明黑底，贴合底边 -->
+	<style name="skin_thumbtext_style" type="text" align="bottom" width="100%" y="0" enabled="false"
+	       bg="true" bgcolor="0x000000" bgalpha="0.55" bgroundedge="0"
+	       css="color:#FFFFFF; text-align:center; font-size:11px;"
+	       textshadow="false"
+	/>
+
+	<!--
+	    ── 显示控制（在 tour.xml 的 <skin_settings> 中修改）──
+	    缩略图底部固定名称：thumbs_text="true/false"
+	    缩略图悬停跟随标签：tooltips_thumbs="true/false"
+	-->
+
+	<!-- 缩略图悬停跟随标签：自适应宽度 + 圆角半透明背景 -->
+	<layer name="skin_tooltip"
+	       width="0" autosize="true" wordwrap="false"
+	       bg="true" bgcolor="0x000000" bgalpha="0.6" bgroundedge="6" padding="5 12"
+	       textshadow="false"
+	       css="color:#FFFFFF; font-family:Arial; font-size:14px;"
+	/>
+
+</krpano>

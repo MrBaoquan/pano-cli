@@ -1,0 +1,242 @@
+<krpano>
+
+	<!--
+		Green Screen Playback Manager
+		- A scene can contain multiple editor_type="greenscreen" videoplayer hotspots.
+		- Only one greenscreen video is allowed to play at a time.
+		- Auto mode plays the hotspot closest to the current view center.
+		- Manual click has priority and locks playback while the hotspot remains in view.
+
+		浏览器自动播放策略说明:
+		- 未获用户交互前，浏览器禁止自动播放带音频的视频。
+		- 用户首次点击任意绿幕讲解员后，设置 autoplay_unlocked=true，
+		  此后 manager 才允许自动播放（带原声音）。
+		- 点击之前，进入视野的热点不会被自动播放，避免"静音播放"误导用户。
+
+		NOTE: krpano named args (args="foo") were unreliable in this setup, so all
+		actions use positional params %1 / %2. Cross-action outputs use global vars.
+	-->
+
+	<data name="greenscreen_settings"
+	      check_interval="0.35"
+	      switch_delay="0.6"
+	      manual_lock_seconds="15.0"
+	      h_factor="0.38"
+	      v_factor="0.28"
+	      current=""
+	      candidate=""
+	      suppressed=""
+	      manual="false"
+	      running="false"
+	      autoplay_unlocked="false"
+	      />
+
+	<events name="greenscreen_manager_events" keep="true"
+	        onnewscene="greenscreen_stop_all(); greenscreen_start_loop();"
+	        />
+
+	<action name="greenscreen_start_loop">
+		set(data[greenscreen_settings].current, '');
+		set(data[greenscreen_settings].candidate, '');
+		set(data[greenscreen_settings].suppressed, '');
+		set(data[greenscreen_settings].manual, false);
+		set(data[greenscreen_settings].running, true);
+		delayedcall(greenscreen_loop, get(data[greenscreen_settings].check_interval), greenscreen_check_loop(); );
+	</action>
+
+	<action name="greenscreen_stop_loop">
+		set(data[greenscreen_settings].running, false);
+		stopdelayedcall(greenscreen_loop);
+	</action>
+
+	<action name="greenscreen_check_loop">
+		if(data[greenscreen_settings].running == true,
+			greenscreen_auto_update();
+			delayedcall(greenscreen_loop, get(data[greenscreen_settings].check_interval), greenscreen_check_loop(); );
+		);
+	</action>
+
+	<action name="greenscreen_stop_all">
+		for(set(_gs_i, 0), _gs_i LT hotspot.count, inc(_gs_i),
+			copy(_gs_name, hotspot[get(_gs_i)].name);
+			if(hotspot[get(_gs_name)].editor_type == 'greenscreen' OR hotspot[get(_gs_name)].greenscreen_autoplay == true,
+				if(hotspot[get(_gs_name)].pause, hotspot[get(_gs_name)].pause(); );
+			);
+		);
+		set(data[greenscreen_settings].current, '');
+	</action>
+
+	<!-- %1 = hotspot name, %2 = source ('manual' | 'auto') -->
+	<action name="greenscreen_play_only">
+		set(_gs_target, %1);
+		set(_gs_source, %2);
+		for(set(_gs_i, 0), _gs_i LT hotspot.count, inc(_gs_i),
+			copy(_gs_name, hotspot[get(_gs_i)].name);
+			if(hotspot[get(_gs_name)].editor_type == 'greenscreen' OR hotspot[get(_gs_name)].greenscreen_autoplay == true,
+				if(_gs_name == _gs_target,
+					<!-- krpano videoplayer.js 的 play() 不直接生效，需要 togglepause 切换 -->
+					if(hotspot[get(_gs_name)].ispaused == true,
+						hotspot[get(_gs_name)].togglepause();
+					);
+				,
+					if(hotspot[get(_gs_name)].pause, hotspot[get(_gs_name)].pause(); );
+				);
+			);
+		);
+		copy(data[greenscreen_settings].current, _gs_target);
+		set(data[greenscreen_settings].suppressed, '');
+		if(_gs_source == 'manual',
+			set(data[greenscreen_settings].manual, true);
+			set(data[greenscreen_settings].autoplay_unlocked, true);
+			stopdelayedcall(greenscreen_manual_unlock);
+			delayedcall(greenscreen_manual_unlock, get(data[greenscreen_settings].manual_lock_seconds), set(data[greenscreen_settings].manual, false); );
+		,
+			set(data[greenscreen_settings].manual, false);
+			stopdelayedcall(greenscreen_manual_unlock);
+		);
+	</action>
+
+	<!-- %1 = hotspot name -->
+	<action name="greenscreen_manual_play">
+		if(hotspot[%1],
+			greenscreen_play_only(%1, manual);
+		);
+	</action>
+
+	<!-- %1 = hotspot name -->
+	<action name="greenscreen_pause">
+		if(hotspot[%1].pause, hotspot[%1].pause(); );
+		set(data[greenscreen_settings].suppressed, %1);
+		if(data[greenscreen_settings].current == %1,
+			set(data[greenscreen_settings].current, '');
+			set(data[greenscreen_settings].manual, false);
+			stopdelayedcall(greenscreen_manual_unlock);
+		);
+	</action>
+
+	<!-- %1 = hotspot name -->
+	<action name="greenscreen_toggle_manual">
+		if(data[greenscreen_settings].current == %1,
+			greenscreen_pause(%1);
+		,
+			greenscreen_manual_play(%1);
+		);
+	</action>
+
+	<!-- %1 = ath value; result written to global.greenscreen_tmp_dh -->
+	<action name="greenscreen_get_delta_h">
+		calc(_gs_dh, %1 - view.hlookat);
+		if(_gs_dh GT 180, sub(_gs_dh, 360));
+		if(_gs_dh LT -180, add(_gs_dh, 360));
+		calc(_gs_dh, abs(_gs_dh));
+		set(global.greenscreen_tmp_dh, get(_gs_dh));
+	</action>
+
+	<!-- %1 = hotspot name; result written to global.greenscreen_tmp_in_view -->
+	<action name="greenscreen_is_in_view">
+		set(global.greenscreen_tmp_in_view, false);
+		if(hotspot[%1],
+			greenscreen_get_delta_h(get(hotspot[%1].ath));
+			copy(_gs_hdiff, global.greenscreen_tmp_dh);
+			calc(_gs_vdiff, abs(hotspot[%1].atv - view.vlookat));
+			calc(_gs_hlimit, view.fov * data[greenscreen_settings].h_factor);
+			calc(_gs_vlimit, view.fov * data[greenscreen_settings].v_factor);
+			if(_gs_hdiff LT _gs_hlimit AND _gs_vdiff LT _gs_vlimit,
+				set(global.greenscreen_tmp_in_view, true);
+			);
+		);
+	</action>
+
+	<!-- result written to global.greenscreen_best -->
+	<action name="greenscreen_find_best">
+		set(global.greenscreen_best, '');
+		set(_gs_best_score, 999999);
+		for(set(_gs_i, 0), _gs_i LT hotspot.count, inc(_gs_i),
+			copy(_gs_name, hotspot[get(_gs_i)].name);
+			if(hotspot[get(_gs_name)].editor_type == 'greenscreen' OR hotspot[get(_gs_name)].greenscreen_autoplay == true,
+				greenscreen_get_delta_h(get(hotspot[get(_gs_name)].ath));
+				copy(_gs_hdiff, global.greenscreen_tmp_dh);
+				calc(_gs_vdiff, abs(hotspot[get(_gs_name)].atv - view.vlookat));
+				calc(_gs_hlimit, view.fov * data[greenscreen_settings].h_factor);
+				calc(_gs_vlimit, view.fov * data[greenscreen_settings].v_factor);
+				if(_gs_hdiff LT _gs_hlimit AND _gs_vdiff LT _gs_vlimit,
+					calc(_gs_score, _gs_hdiff + _gs_vdiff * 1.5);
+					if(_gs_score LT _gs_best_score,
+						copy(_gs_best_score, _gs_score);
+						set(global.greenscreen_best, get(_gs_name));
+					);
+				);
+			);
+		);
+	</action>
+
+	<action name="greenscreen_commit_candidate">
+		copy(_gs_candidate, data[greenscreen_settings].candidate);
+		if(_gs_candidate != '',
+			greenscreen_find_best();
+			copy(_gs_best_now, global.greenscreen_best);
+			if(_gs_best_now == _gs_candidate,
+				greenscreen_play_only(get(_gs_candidate), auto);
+			);
+		);
+		set(data[greenscreen_settings].candidate, '');
+	</action>
+
+	<action name="greenscreen_auto_update">
+		set(_gs_skip_auto, false);
+		if(data[greenscreen_settings].manual == true,
+			copy(_gs_current, data[greenscreen_settings].current);
+			greenscreen_is_in_view(get(_gs_current));
+			copy(_gs_manual_in_view, global.greenscreen_tmp_in_view);
+			if(_gs_manual_in_view == true,
+				set(_gs_skip_auto, true);
+			,
+				set(data[greenscreen_settings].manual, false);
+				stopdelayedcall(greenscreen_manual_unlock);
+			);
+		);
+
+		<!-- 保持播放：浏览器可能在某些时刻暂停视频，重新触发播放 -->
+		copy(_gs_keep, data[greenscreen_settings].current);
+		if(_gs_keep != '' AND data[greenscreen_settings].suppressed != _gs_keep,
+			if(hotspot[get(_gs_keep)].ispaused == true AND hotspot[get(_gs_keep)].loaded == true,
+				hotspot[get(_gs_keep)].togglepause();
+			);
+		);
+
+		<!-- 未解锁自动播放权限前，不进入自动选择逻辑（避免静音误导用户） -->
+		if(data[greenscreen_settings].autoplay_unlocked != true,
+			set(_gs_skip_auto, true);
+		);
+
+		if(_gs_skip_auto == false,
+			greenscreen_find_best();
+			copy(_gs_best, global.greenscreen_best);
+			if(_gs_best == '',
+				greenscreen_stop_all();
+				set(data[greenscreen_settings].candidate, '');
+				set(data[greenscreen_settings].suppressed, '');
+				stopdelayedcall(greenscreen_auto_commit_delay);
+			,
+				if(_gs_best == data[greenscreen_settings].suppressed,
+					<!-- 用户手动暂停的热点仍在视野内：保持暂停，不自动重播 -->
+					set(data[greenscreen_settings].candidate, '');
+					stopdelayedcall(greenscreen_auto_commit_delay);
+				,
+					set(data[greenscreen_settings].suppressed, '');
+					if(data[greenscreen_settings].current == _gs_best,
+						set(data[greenscreen_settings].candidate, '');
+						stopdelayedcall(greenscreen_auto_commit_delay);
+					,
+						if(data[greenscreen_settings].candidate != _gs_best,
+							copy(data[greenscreen_settings].candidate, _gs_best);
+							stopdelayedcall(greenscreen_auto_commit_delay);
+							delayedcall(greenscreen_auto_commit_delay, get(data[greenscreen_settings].switch_delay), greenscreen_commit_candidate(); );
+						);
+					);
+				);
+			);
+		);
+	</action>
+
+</krpano>

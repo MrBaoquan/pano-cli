@@ -1,0 +1,500 @@
+<krpano>
+
+	<!-- Scene Group Filter System (panohper) -->
+	<!-- Project-specific group data is loaded via skin_apply_group_data() -->
+
+	<!-- Configuration: set to true to lock prev/next within current group -->
+	<data name="group_settings" group_lock_navigation="true" />
+
+	<!-- Groups scrollarea container (defined in XML so plugin loads before actions run) -->
+	<layer name="skin_groups_container" type="container" keep="true" parent="skin_scroll_layer"
+	       align="top" width="100%" height="32" y="0" visible="true" maskchildren="true" bgcapture="false" zorder="5" />
+	<layer name="skin_groups_bar" keep="true" parent="skin_groups_container"
+	       url.html5="%VIEWER%/plugins/scrollarea.js" direction="h"
+	       align="top" width="696" height="32" zorder="1" />
+
+	<!-- Group button style -->
+	<style name="skin_group_btn"
+	       type="text"
+	       keep="true"
+	       parent="skin_groups_bar"
+	       align="lefttop"
+	       bg="true"
+	       bgroundedge="12"
+	       padding="4 12 4 12"
+	       css="color:#FFFFFF; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center;"
+	       bgalpha="0.0"
+	       bgcolor="0xFFFFFF"
+	       onover="if(name != global.active_group_btn, tween(bgalpha, 0.15, 0.2); );"
+	       onout="if(name != global.active_group_btn, tween(bgalpha, 0.0, 0.2); );"
+	       onclick="copy(global.active_group, groupid); skin_filter_group();"
+	       />
+
+
+	<!-- Override skin_startup -->
+	<action name="skin_startup" scope="local">
+		if(skin_settings.thumbs,
+			if(skin_settings.thumbs_opened,
+				set(layer[skin_thumbs].state, 'opened');
+				set(layer[skin_thumbs_container].visible, true);
+			);
+			copy(layer[skin_thumbs].draggable, skin_settings.thumbs_dragging);
+			if(skin_settings.thumbs_onhoverscrolling AND device.mouse,
+				set(layer[skin_thumbs].draggable, false);
+				set(layer[skin_thumbs].onhover_autoscrolling, true);
+			);
+		);
+		if(skin_settings.gyro AND !device.desktop AND device.html5,
+			copy(plugin[skin_gyro].url, plugin[skin_gyro].html5_url);
+		);
+		if(skin_settings.maps == true,
+			set(layer[skin_btn_map].visible, true);
+			if(skin_settings.maps_loadonfirstuse == false, skin_load_maps_plugin(); );
+		);
+		if(skin_settings.littleplanetintro AND !global.startlookat AND (device.webgl OR device.flash),
+			skin_setup_littleplanetintro();
+		);
+		skin_addthumbs();
+		skin_setup_groups();
+		skin_filter_group();
+		skin_onresize();
+		skin_updatescroll();
+		set(layer[skin_layer].visible, true);
+	</action>
+
+
+	<!-- Override skin_onresize: +32px for groups bar -->
+	<action name="skin_onresize" scope="local">
+		mul(mh, area.pixelheight, -1);
+		if(layer[skin_thumbs].state == 'opened', add(mh, layer[skin_thumbs].height); add(mh, 32); );
+		if(layer[skin_map].state == 'opened', sub(hh, area.pixelheight, skin_settings.controlbar_offset); sub(hh, layer[skin_control_bar].height); sub(hh, 32); add(mh, hh); add(mh, skin_settings.controlbar_overlap); sub(mh, layer[skin_scroll_layer].y_offset); copy(layer[skin_map].height, hh); );
+		add(mh, layer[skin_scroll_layer].y_offset);
+		set(layer[skin_scroll_layer].y, get(mh));
+		if(display.safearea_inset, calc(layer[skin_btn_show].y, skin_settings.controlbar_height - skin_settings.controlbar_offset_closed - (display.safearea_inset.b LT 0 ? display.safearea_inset.b : 0)); );
+		skin_video_updateseekbarwidth();
+		skin_arrange_buttons();
+	</action>
+
+
+	<!-- Override skin_showthumbs: +32px for groups bar -->
+	<action name="skin_showthumbs" scope="local" args="show">
+		if(show == null, if(layer[skin_thumbs].state == 'closed', set(show, true), set(show, false)); );
+		if(show,
+			set(layer[skin_thumbs].state, 'opened');
+			tween(layer[skin_thumbs].alpha, 1.0, 0.25);
+			tween(layer[skin_scroll_layer].y, calc(-area.pixelheight + layer[skin_thumbs].height + 32 + layer[skin_scroll_layer].y_offset), 0.5, easeOutQuint);
+			set(layer[skin_thumbs_container].visible, true);
+			set(layer[skin_groups_container].visible, true);
+			tween(layer[skin_thumbs_container].alpha, 1.0, 0.25);
+			tween(layer[skin_map].alpha, 0.0, 0.25, default, set(layer[skin_map].visible, false));
+		  ,
+			set(layer[skin_thumbs].state, 'closed');
+			tween(layer[skin_thumbs].alpha, 0.0, 0.25, easeOutQuint);
+			tween(layer[skin_scroll_layer].y, calc(-area.pixelheight + layer[skin_scroll_layer].y_offset), 0.5, easeOutQuint, set(layer[skin_thumbs_container].visible, false); set(layer[skin_groups_container].visible, false); );
+		);
+	</action>
+
+
+	<!-- Setup group filter buttons -->
+	<action name="skin_setup_groups" scope="local">
+		set(global.gbtn_spacing, 6);
+
+		<!-- Load project-specific group data (group_count + button labels) -->
+		skin_apply_group_data();
+
+		<!-- Create buttons -->
+		for(set(gi, 0), gi LT global.group_count, inc(gi),
+			txtadd(gbtnname, 'skin_gbtn_', get(gi));
+			addlayer(get(gbtnname));
+			layer[get(gbtnname)].loadstyle(skin_group_btn);
+			set(layer[get(gbtnname)].y, 4);
+		);
+
+		<!-- Apply button labels (defined by skin_apply_group_data) -->
+		skin_set_group_btn_labels();
+
+		set(global.active_group, 'all');
+		set(global.active_group_btn, 'skin_gbtn_0');
+		set(layer[skin_gbtn_0].bgalpha, 0.3);
+		set(layer[skin_gbtn_0].css, 'color:#FFD700; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center; font-weight:bold;');
+
+		<!-- Push scroll container down for groups bar, keep scrollarea untouched -->
+		set(layer[skin_scroll_container].y, 32);
+
+		<!-- Defer positioning until text layers are rendered -->
+		callwhen(layer[skin_gbtn_0].pixelwidth GT 0, skin_position_group_btns());
+	</action>
+
+
+	<!-- Position group buttons by their rendered pixelwidth -->
+	<action name="skin_position_group_btns" scope="local">
+		set(_x, 0);
+		for(set(gi, 0), gi LT global.group_count, inc(gi),
+			txtadd(gbtnname, 'skin_gbtn_', get(gi));
+			set(layer[get(gbtnname)].x, get(_x));
+			calc(_x, _x + layer[get(gbtnname)].pixelwidth + global.gbtn_spacing);
+		);
+		calc(global.gbtn_totalw, _x - global.gbtn_spacing);
+		set(layer[skin_groups_bar].width, get(global.gbtn_totalw));
+
+		<!-- Re-center scroll on active button -->
+		calc(_cx, layer[get(global.active_group_btn)].x + layer[get(global.active_group_btn)].pixelwidth * 0.5);
+		layer[skin_groups_bar].scrolltocenter(get(_cx), 0);
+	</action>
+
+
+	<!-- Filter scenes by group — reads from global.active_group -->
+	<action name="skin_filter_group">
+
+		<!-- Update button highlight states -->
+		for(set(_gf_i, 0), _gf_i LT global.group_count, inc(_gf_i),
+			txtadd(_gf_btn, 'skin_gbtn_', get(_gf_i));
+			if(layer[get(_gf_btn)].groupid == global.active_group,
+				set(global.active_group_btn, get(_gf_btn));
+				tween(layer[get(_gf_btn)].bgalpha, 0.3, 0.2);
+				set(layer[get(_gf_btn)].css, 'color:#FFD700; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center; font-weight:bold;');
+			,
+				tween(layer[get(_gf_btn)].bgalpha, 0.0, 0.2);
+				set(layer[get(_gf_btn)].css, 'color:#FFFFFF; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center;');
+			);
+		);
+
+		<!-- Scroll groups bar to center on active button -->
+		calc(_gf_btn_cx, layer[get(global.active_group_btn)].x + layer[get(global.active_group_btn)].pixelwidth * 0.5);
+		layer[skin_groups_bar].scrolltocenter(get(_gf_btn_cx), 0);
+
+		<!-- Calculate thumb layout metrics -->
+		copy(_gf_tw, skin_settings.thumbs_width);
+		copy(_gf_tp, skin_settings.thumbs_padding);
+		calc(_gf_txo, _gf_tw + _gf_tp);
+
+		<!-- Reposition visible thumbs, hide others; build linked list -->
+		set(_gf_vis, 0);
+		set(_gf_first_scene, '');
+		set(_gf_prev_scene, '');
+		set(global.group_first_scene, '');
+		set(global.group_last_scene, '');
+		for(set(_gf_i, 0), _gf_i LT global.thumbarray.length, inc(_gf_i),
+			txtadd(_gf_tn, 'skin_thumb_', get(_gf_i));
+
+			<!-- Check if thumb belongs to selected group -->
+			set(_gf_show, false);
+			if(global.active_group == 'all',
+				set(_gf_show, true);
+			,
+				copy(_gf_sg, global.thumbarray[get(_gf_i)].scenegroup);
+				if(_gf_sg == global.active_group,
+					set(_gf_show, true);
+				);
+			);
+
+			if(_gf_show,
+				set(layer[get(_gf_tn)].visible, true);
+				calc(_gf_nx, _gf_tp + _gf_vis * _gf_txo);
+				set(layer[get(_gf_tn)].x, get(_gf_nx));
+				<!-- Update scene.thumbx so scrolltocenter uses correct position -->
+				calc(_gf_thumbx, _gf_nx + _gf_txo * 0.5);
+				copy(_gf_sn, global.thumbarray[get(_gf_i)].name);
+				set(scene[get(_gf_sn)].thumbx, get(_gf_thumbx));
+				<!-- Build linked list for group navigation -->
+				set(scene[get(_gf_sn)].group_nav_index, get(_gf_vis));
+				set(scene[get(_gf_sn)].group_next_scene, '');
+				set(scene[get(_gf_sn)].group_prev_scene, get(_gf_prev_scene));
+				if(_gf_prev_scene != '',
+					set(scene[get(_gf_prev_scene)].group_next_scene, get(_gf_sn));
+				);
+				<!-- Record first/last -->
+				if(_gf_vis == 0, copy(_gf_first_scene, _gf_sn); copy(global.group_first_scene, _gf_sn); );
+				copy(global.group_last_scene, _gf_sn);
+				copy(_gf_prev_scene, _gf_sn);
+				inc(_gf_vis);
+				if(skin_settings.thumbs_text,
+					txtadd(_gf_tt, 'skin_thumbtext_', get(_gf_i));
+					set(layer[get(_gf_tt)].visible, true);
+				);
+			,
+				set(layer[get(_gf_tn)].visible, false);
+				if(skin_settings.thumbs_text,
+					txtadd(_gf_tt, 'skin_thumbtext_', get(_gf_i));
+					set(layer[get(_gf_tt)].visible, false);
+				);
+			);
+		);
+
+		set(global.group_thumbs_count, get(_gf_vis));
+
+		<!-- Update scrollarea content width and set to leftmost position -->
+		calc(_gf_nw, _gf_txo * _gf_vis + _gf_tp);
+		set(layer[skin_thumbs].width, get(_gf_nw));
+		layer[skin_thumbs].stopscrolling();
+		calc(_gf_start_x, (_gf_nw - layer[skin_thumbs_container].pixelwidth) / 2);
+		if(_gf_start_x LT 0, set(_gf_start_x, 0));
+		set(layer[skin_thumbs].x, get(_gf_start_x));
+		layer[skin_thumbs].update();
+
+		<!-- Load the first scene of this group -->
+		if(_gf_first_scene != '',
+			calc(_gf_first_parent, 'skin_thumb_' + scene[get(_gf_first_scene)].thumbindex);
+			if(scene[get(_gf_first_scene)].thumburl AND layer[get(_gf_first_parent)],
+				set(layer[skin_thumbborder], parent=get(_gf_first_parent), visible=true);
+			);
+			loadscene(get(scene[get(_gf_first_scene)].name), null, get(skin_settings.loadscene_flags), get(skin_settings.loadscene_blend));
+		);
+	</action>
+
+
+	<!-- Override skin_nextscene: group-aware navigation -->
+	<action name="skin_nextscene" scope="local" args="indexadd">
+		if(data[group_settings].group_lock_navigation == true AND global.active_group != 'all',
+			<!-- Navigate within current group using linked list -->
+			if(indexadd GT 0,
+				copy(newscenename, scene[get(xml.scene)].group_next_scene);
+			,
+				copy(newscenename, scene[get(xml.scene)].group_prev_scene);
+			);
+			if(newscenename != '',
+				skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+			);
+		,
+			<!-- Default behavior: navigate across all scenes -->
+			set(newscenename, null);
+			if(isset(scene[get(xml.scene)].thumbindex),
+				add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
+				if(newsceneindex GE 0 AND newsceneindex LT thumbarray.length,
+					set(newscenename, get(thumbarray[get(newsceneindex)].name));
+				);
+			,
+				add(newsceneindex, scene[get(xml.scene)].index, indexadd);
+				if(newsceneindex GE 0 AND newsceneindex LT scene.count,
+					set(newscenename, get(scene[get(newsceneindex)].name));
+				);
+			);
+			if(newscenename != null,
+				skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+			);
+		);
+	</action>
+
+
+	<!-- Override skin_nextscene_loop: group-aware loop navigation -->
+	<action name="skin_nextscene_loop" scope="local" args="indexadd">
+		if(data[group_settings].group_lock_navigation == true AND global.active_group != 'all',
+			<!-- Loop within current group using linked list -->
+			if(indexadd GT 0,
+				copy(newscenename, scene[get(xml.scene)].group_next_scene);
+				if(newscenename == '', copy(newscenename, global.group_first_scene); );
+			,
+				copy(newscenename, scene[get(xml.scene)].group_prev_scene);
+				if(newscenename == '', copy(newscenename, global.group_last_scene); );
+			);
+			if(newscenename != '',
+				skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+			);
+		,
+			<!-- Default loop behavior -->
+			set(newscenename, null);
+			if(isset(scene[get(xml.scene)].thumbindex),
+				sub(lastsceneindex, thumbarray.length, 1);
+				add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
+				if(newsceneindex LT 0, copy(newsceneindex, lastsceneindex));
+				if(newsceneindex GT lastsceneindex, set(newsceneindex, 0));
+				set(newscenename, get(thumbarray[get(newsceneindex)].name));
+			,
+				add(newsceneindex, scene[get(xml.scene)].index, indexadd);
+				sub(lastsceneindex, scene.count, 1);
+				if(newsceneindex LT 0, copy(newsceneindex, lastsceneindex));
+				if(newsceneindex GT lastsceneindex, set(newsceneindex, 0));
+				set(newscenename, get(scene[get(newsceneindex)].name));
+			);
+			if(newscenename != null,
+				skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+			);
+		);
+	</action>
+
+
+	<!-- Override skin_update_scene_infos: auto-switch group when navigating across groups -->
+	<action name="skin_update_scene_infos" scope="local">
+		if(xml.scene !== null AND scene[get(xml.scene)].index GE 0,
+
+			if(skin_settings.title,
+				if(global.title, calc(layer[skin_title].html, global.title + ' - ' + scene[get(xml.scene)].title); , copy(layer[skin_title].html, scene[get(xml.scene)].title); );
+				delayedcall(0.1, set(layer[skin_title].visible, true));
+			);
+
+			<!-- Group-aware prev/next button enable/disable -->
+			if(data[group_settings].group_lock_navigation == true AND global.active_group != 'all',
+				if(skin_settings.thumbs_loop == false,
+					if(scene[get(xml.scene)].group_prev_scene != '',
+						set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+					);
+					if(scene[get(xml.scene)].group_next_scene != '',
+						set(layer[skin_btn_next], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_next], enabled=false, alpha=0.3);
+					);
+				,
+					if(global.group_thumbs_count GT 1,
+						set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+						set(layer[skin_btn_next], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+						set(layer[skin_btn_next], enabled=false, alpha=0.3);
+					);
+				);
+			,
+				<!-- Default prev/next button behavior -->
+				if(skin_settings.thumbs_loop == false,
+					if(scene[get(xml.scene)].index GT 0,
+						set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+					);
+					sub(lastsceneindex, scene.count, 1);
+					if(scene[get(xml.scene)].index LT lastsceneindex,
+						set(layer[skin_btn_next], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_next], enabled=false, alpha=0.3);
+					);
+				,
+					if(scene.count GT 1,
+						set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+						set(layer[skin_btn_next], enabled=true, alpha=1.0);
+					,
+						set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+						set(layer[skin_btn_next], enabled=false, alpha=0.3);
+					);
+				);
+			);
+
+			<!-- Auto-switch group tab if scene belongs to a different group -->
+			copy(_si_sg, scene[get(xml.scene)].scenegroup);
+			if(global.active_group != 'all' AND _si_sg !== global.active_group,
+				copy(global.active_group, _si_sg);
+				skin_filter_group_tabs_only();
+				skin_filter_group_relayout();
+			);
+
+			if(scene.count GT 1,
+				set(layer[skin_btn_prev_fs].visible, true);
+				set(layer[skin_btn_next_fs].visible, true);
+			,
+				set(layer[skin_btn_prev_fs].visible, false);
+				set(layer[skin_btn_next_fs].visible, false);
+			);
+
+			calc(parentname, 'skin_thumb_' + scene[get(xml.scene)].thumbindex);
+			if(scene[get(xml.scene)].thumburl AND scene[get(xml.scene)].skipthumb != true AND layer[get(parentname)],
+				set(layer[skin_thumbborder], parent=get(parentname), visible=true);
+			,
+				set(layer[skin_thumbborder].visible, false);
+			);
+
+			if(scene[get(xml.scene)].mapspotname,
+				layer[skin_map].activatespot(get(scene[get(xml.scene)].mapspotname));
+				layer[skin_map].pantospot(get(scene[get(xml.scene)].mapspotname));
+			);
+
+			if(plugin[skin_gyro].isavailable == true AND (view.vlookatrange == 180 OR global.lpinfo.scene === xml.scene),
+				set(layer[skin_btn_gyro].visible, true);
+			,
+				set(layer[skin_btn_gyro].visible, false);
+			);
+
+			if(scene[get(xml.scene)].isvideopano AND plugin[video] !== null,
+				skin_video_addcontrols();
+			,
+				skin_video_removecontrols();
+			);
+		);
+	</action>
+
+
+	<!-- Update group tab highlights only (no scene loading/relayout) -->
+	<action name="skin_filter_group_tabs_only">
+		for(set(_gf_i, 0), _gf_i LT global.group_count, inc(_gf_i),
+			txtadd(_gf_btn, 'skin_gbtn_', get(_gf_i));
+			if(layer[get(_gf_btn)].groupid == global.active_group,
+				set(global.active_group_btn, get(_gf_btn));
+				tween(layer[get(_gf_btn)].bgalpha, 0.3, 0.2);
+				set(layer[get(_gf_btn)].css, 'color:#FFD700; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center; font-weight:bold;');
+			,
+				tween(layer[get(_gf_btn)].bgalpha, 0.0, 0.2);
+				set(layer[get(_gf_btn)].css, 'color:#FFFFFF; font-family:Arial,Microsoft YaHei,sans-serif; font-size:12px; text-align:center;');
+			);
+		);
+		<!-- Scroll groups bar to center on active button -->
+		calc(_gf_btn_cx, layer[get(global.active_group_btn)].x + layer[get(global.active_group_btn)].pixelwidth * 0.5);
+		layer[skin_groups_bar].scrolltocenter(get(_gf_btn_cx), 0);
+	</action>
+
+
+	<!-- Relayout thumbs for current group without loading a scene -->
+	<action name="skin_filter_group_relayout">
+		copy(_gf_tw, skin_settings.thumbs_width);
+		copy(_gf_tp, skin_settings.thumbs_padding);
+		calc(_gf_txo, _gf_tw + _gf_tp);
+
+		set(_gf_vis, 0);
+		set(_gf_prev_scene, '');
+		set(global.group_first_scene, '');
+		set(global.group_last_scene, '');
+		for(set(_gf_i, 0), _gf_i LT global.thumbarray.length, inc(_gf_i),
+			txtadd(_gf_tn, 'skin_thumb_', get(_gf_i));
+			set(_gf_show, false);
+			if(global.active_group == 'all',
+				set(_gf_show, true);
+			,
+				copy(_gf_sg, global.thumbarray[get(_gf_i)].scenegroup);
+				if(_gf_sg == global.active_group, set(_gf_show, true); );
+			);
+			if(_gf_show,
+				set(layer[get(_gf_tn)].visible, true);
+				calc(_gf_nx, _gf_tp + _gf_vis * _gf_txo);
+				set(layer[get(_gf_tn)].x, get(_gf_nx));
+				calc(_gf_thumbx, _gf_nx + _gf_txo * 0.5);
+				copy(_gf_sn, global.thumbarray[get(_gf_i)].name);
+				set(scene[get(_gf_sn)].thumbx, get(_gf_thumbx));
+				<!-- Build linked list -->
+				set(scene[get(_gf_sn)].group_nav_index, get(_gf_vis));
+				set(scene[get(_gf_sn)].group_next_scene, '');
+				set(scene[get(_gf_sn)].group_prev_scene, get(_gf_prev_scene));
+				if(_gf_prev_scene != '',
+					set(scene[get(_gf_prev_scene)].group_next_scene, get(_gf_sn));
+				);
+				if(_gf_vis == 0, copy(global.group_first_scene, _gf_sn); );
+				copy(global.group_last_scene, _gf_sn);
+				copy(_gf_prev_scene, _gf_sn);
+				inc(_gf_vis);
+				if(skin_settings.thumbs_text,
+					txtadd(_gf_tt, 'skin_thumbtext_', get(_gf_i));
+					set(layer[get(_gf_tt)].visible, true);
+				);
+			,
+				set(layer[get(_gf_tn)].visible, false);
+				if(skin_settings.thumbs_text,
+					txtadd(_gf_tt, 'skin_thumbtext_', get(_gf_i));
+					set(layer[get(_gf_tt)].visible, false);
+				);
+			);
+		);
+
+		set(global.group_thumbs_count, get(_gf_vis));
+		calc(_gf_nw, _gf_txo * _gf_vis + _gf_tp);
+		set(layer[skin_thumbs].width, get(_gf_nw));
+		layer[skin_thumbs].stopscrolling();
+		<!-- Directly calculate scroll x to center on current scene -->
+		copy(_gf_cw, layer[skin_thumbs_container].pixelwidth);
+		calc(_gf_max_scroll, (_gf_nw - _gf_cw) / 2);
+		if(_gf_max_scroll LT 0, set(_gf_max_scroll, 0));
+		calc(_gf_target_x, _gf_nw / 2 - scene[get(xml.scene)].thumbx);
+		if(_gf_target_x GT _gf_max_scroll, copy(_gf_target_x, _gf_max_scroll));
+		mul(_gf_neg_max, _gf_max_scroll, -1);
+		if(_gf_target_x LT _gf_neg_max, copy(_gf_target_x, _gf_neg_max));
+		set(layer[skin_thumbs].x, get(_gf_target_x));
+		layer[skin_thumbs].update();
+	</action>
+
+</krpano>

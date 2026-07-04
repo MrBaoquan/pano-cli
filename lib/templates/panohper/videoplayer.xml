@@ -1,0 +1,212 @@
+﻿<krpano>
+
+<action name="panohper_video_init" autorun="preinit">
+if(panohper_base == null, set(panohper_base, ''));
+</action>
+
+<action name="playvideo" args="videourl, posterurl" scope="private:VIDEO">
+set(pid, "vp");
+def(randomid,string,get(pid));
+txtadd(rawcallerid,'rawcaller#', get(pid));
+copy(get(rawcallerid),caller);
+
+txtadd(videobgid,'videobg','#',get(randomid));
+txtadd(loadingid,'loading','#',get(randomid));
+txtadd(videoouterid,'videoouter','#',get(randomid));
+txtadd(videoareaid,'videoarea','#',get(randomid));
+txtadd(videoid,'video','#',get(randomid));
+txtadd(btncloseid,'btnclose','#',get(randomid));
+txtadd(btnplayid,'btnplay','#',get(randomid));
+
+if(get(global.layer[get(videobgid)]) EQ null,
+addlayer(get(videobgid),videobg);
+set(videobg,
+type="container",
+bgcolor=0x000000,
+bgalpha=0.00,
+width=100%,
+height=100%,
+edge=center,
+x=50%,
+y=50%,
+scalechildren=true,
+bgcapture=true,
+zorder=90,
+visible=true
+);
+
+addlayer(get(loadingid),loading);
+txtadd(loading_url, get(global.panohper_base), 'assets/loading/spinner.png');
+set(loading,
+url=get(loading_url),
+visible=true,
+align=center,
+parent=get(videobgid),
+zorder=95,
+onloaded='do_crop_animation(64,64, 8);'
+);
+
+addlayer(get(videoareaid),videoarea);
+set(videoarea,
+parent=get(videobgid),
+type="container",
+bgcolor=0x000000,
+bgalpha=0.00,
+edge=center,
+align=center,
+scalechildren=true,
+bgcapture=true,
+zorder=8,
+visible=true
+);
+
+addlayer(get(videoouterid),videoouter);
+set(videoouter,
+type=container,
+bgcolor=0xffffff,
+bgalpha=0.0,
+alpha=0,
+parent=get(videoareaid),
+width=100%,
+height=100%,
+edge=center,
+align=center,
+bgcapture=true,
+zorder=8,
+bgroundedge=5
+);
+,
+copy(videobg,global.layer[get(videobgid)]);
+copy(loading,global.layer[get(loadingid)]);
+copy(videoarea,global.layer[get(videoareaid)]);
+copy(videoouter,global.layer[get(videoouterid)]);
+);
+
+addlayer(get(videoid),video);
+txtadd(video_url, get(global.panohper_base), 'plugins/videoplayer.js');
+set(video,
+parent=get(videoareaid),
+url=get(video_url),
+scalechildren=true,
+zorder=95,
+align=center,
+edge=center,
+scale=1.0,
+videourl=get(videourl),
+posterurl=get(posterurl),
+pausedonstart=true,
+loop=false,
+volume=1.0,
+onvideoready="vp_handle_video_ready();",
+onvideoplay="vp_handle_video_play();",
+onvideopaused="vp_handle_video_paused();",
+onvideocomplete="vp_handle_video_closed();"
+);
+
+addlayer(get(btncloseid),btnclose);
+txtadd(btnclose_url, get(global.panohper_base), 'assets/icons/close.png');
+set(btnclose,
+parent=get(videobgid),
+type=image,
+url=get(btnclose_url),
+onclick="closevideo();",
+align=righttop,
+x=10,
+y=15,
+alpha=0,
+scale=0.45
+);
+
+addlayer(get(btnplayid),btnplay);
+txtadd(btnplay_url, get(global.panohper_base), 'assets/icons/play.png');
+set(btnplay,
+parent=get(videoid),
+type=image,
+url=get(btnplay_url),
+visible=false,
+align=center,
+onclick="tween(alpha,0); vp_handle_playvideo(); set(visible,false);"
+);
+
+if(global.device.mobile,
+set(video.html5controls,false);
+set(video.onclick,'togglepause();');
+,
+set(video.html5controls,true);
+);
+
+set(videobg.visible,true);
+tween(videobg.alpha,1);
+tween(videobg.bgalpha,0.55);
+set(videoouter.alpha,0);
+set(video.alpha,0);
+tween(global.plugin[pp_blur].range, 40.0);
+</action>
+
+<action name="vp_handle_video_ready" scope="private:VIDEO">
+vp_calc_video_size();
+set(loading.visible,false);
+tween(videobg.bgalpha,0.80,1.0);
+tween(video.alpha,1.0,0.35,linear,
+set(btnclose,parent=get(videoid),alpha=0);
+tween(btnclose.alpha,1);
+tween(videoouter.alpha,0.5);
+tween(videoouter.bgalpha,1);
+if(global.device.ios,
+tween(btnplay.alpha,1);
+set(btnplay.visible,true);
+,
+video.play();
+);
+);
+</action>
+
+<action name="vp_handle_video_play" scope="private:VIDEO">
+tween(btnplay.alpha,0);
+</action>
+
+<action name="vp_handle_video_paused" scope="private:VIDEO">
+ifnot(global.device.mobile, break(););
+tween(btnplay.alpha,1);
+set(btnplay.visible,true);
+</action>
+
+<action name="vp_handle_video_closed" scope="private:VIDEO">
+callwith(btnclose, onclick);
+</action>
+
+<action name="vp_calc_video_size" scope="private:VIDEO">
+if(global.stagewidth GT 600,
+set(maxwidth, calc(get(global.stagewidth) * 0.75));
+,
+set(maxwidth, get(global.stagewidth));
+);
+Math.min(maxwidth,video.videowidth);
+
+set(w_scale, calc(maxwidth / get(video.videowidth) ));
+set(maxheight, calc(get(video.videoheight) * get(w_scale)));
+set(videoarea,width=get(maxwidth),height=get(maxheight));
+
+set(video.width,calc(maxwidth-10));
+set(video.height,calc(maxheight-10));
+set(videoouter,
+width=calc(video.width+8),
+height=calc(video.height+8)
+);
+</action>
+
+<action name="vp_handle_playvideo" scope="private:VIDEO">
+video.play();
+</action>
+
+<action name="closevideo" scope="private:VIDEO">
+tween(global.plugin[pp_blur].range, 0.0);
+video.stop();
+tween(videobg.alpha,0,0.5,linear,
+removelayer(get(videoid),true);
+set(videobg.visible, false);
+);
+callwith(get(rawcallerid), onvideoclosed);
+</action>
+
+</krpano>

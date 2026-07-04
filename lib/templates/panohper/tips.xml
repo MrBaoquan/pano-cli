@@ -1,0 +1,36 @@
+<krpano>
+
+<layer name="v_tip" keep="true" zorder="99"
+	type="text"
+	html="&#8597; 可上下滑动查看"
+	css="color:#FFFFFF; font-size:13px; text-align:center;"
+	bg="true" bgcolor="0x000000" bgalpha="0.6" bgroundedge="4"
+	padding="6"
+	align="top" y="80" alpha="0.0" />
+
+<layer name="h_tip" keep="true" zorder="99"
+	type="text"
+	html="&#8596; 可左右滑动查看"
+	css="color:#FFFFFF; font-size:13px; text-align:center;"
+	bg="true" bgcolor="0x000000" bgalpha="0.6" bgroundedge="4"
+	padding="6"
+	align="top" y="80" alpha="0.0" />
+
+<action name="showtip" args="tip_id">
+	cleardelayedcall(autohide_tip);
+	if(get(tip_id) EQ "h",
+		tween(global.layer[h_tip].alpha, 1.0, 0.3);
+		delayedcall(autohide_tip, 3, tween(global.layer[h_tip].alpha, 0.0, 0.5));
+	,
+		tween(global.layer[v_tip].alpha, 1.0, 0.3);
+		delayedcall(autohide_tip, 3, tween(global.layer[v_tip].alpha, 0.0, 0.5));
+	);
+</action>
+
+<action name="hidetip">
+	cleardelayedcall(autohide_tip);
+	set(global.layer[h_tip].alpha, 0.0);
+	set(global.layer[v_tip].alpha, 0.0);
+</action>
+
+</krpano>
