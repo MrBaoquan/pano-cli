@@ -2,6 +2,12 @@
 
 本项目版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.5] — 2026-07-06
+
+### 修复
+
+- **`pano upgrade` 不复制 pano-runtime.js 也不注入 tour.html 引用**：`pano upgrade` 只更新 panohper/、tour.xml、main.xml、WORKFLOW.md，遗漏了 pano-runtime.js 文件复制和 tour.html 中的 `<script src="pano-runtime.js">` 注入。老项目执行 `pano upgrade` 后仍缺少 pano-runtime.js，导致视频热点点击无反应。已在 upgrade 命令中添加 pano-runtime.js 文件复制和 tour.html 引用注入。
+
 ## [2.5.4] — 2026-07-06
 
 ### 修复
