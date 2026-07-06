@@ -1,6 +1,6 @@
 {
   "name": "@mrbaoquan/pano-cli",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "krpano 全景项目 CLI 工具 — 一键创建、构建、发布全景漫游",
   "type": "module",
   "bin": {
