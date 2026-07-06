@@ -2,6 +2,15 @@
 
 本项目版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.4] — 2026-07-06
+
+### 修复
+
+- **点击视频热点无反应（tour.html 缺少 pano-runtime.js 引用）**：krpanotools makepano 生成的 tour.html 只包含 `tour.js`，不包含 `pano-runtime.js`，导致 `window.__pano_runtime_openVideo` 等热点 overlay 函数未定义，onclick 调用时报 ReferenceError。
+  - `pano init`：初始化时自动在 tour.html 中注入 `<script src="pano-runtime.js"></script>`，并复制 pano-runtime.js 文件
+  - `pano serve`：服务 tour.html 时动态检查并注入 pano-runtime.js 引用（兼容老项目）
+  - `pano publish`：已有 `ensureRuntimeScript` 逻辑，无需修改
+
 ## [2.5.3] — 2026-07-06
 
 ### 修复
