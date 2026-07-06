@@ -255,7 +255,6 @@
 		edge="center"
 		scale="0.5"
 		handcursor="true"
-		capture="true"
 		onloaded="do_crop_animation(86,86,24);"
 	/>
 </krpano>

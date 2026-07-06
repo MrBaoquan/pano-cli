@@ -2,6 +2,12 @@
 
 本项目版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.3] — 2026-07-06
+
+### 修复
+
+- **点击视频热点无反应**：`hotspot_video` style 中 `capture="true"` 会阻止 onclick 事件冒泡，导致 `onclick="js(window.__pano_runtime_openVideo(...));"` 无法触发，视频播放面板不弹出。已移除 `capture="true"`（该属性仅适用于绿幕讲解热点，视频热点需要响应 onclick）。
+
 ## [2.5.2] — 2026-07-06
 
 ### 修复
