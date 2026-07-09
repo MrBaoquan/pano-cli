@@ -2,6 +2,18 @@
 
 本项目版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.5.7] — 2026-07-09
+
+### 修复
+
+- **`pano publish` 打包后中文文件名在服务器解压乱码**：`createZipArchive` 使用 zip 格式（`tar -a` 或 `Compress-Archive`），zip 标准对中文文件名编码处理不一致（Windows 用 GBK、Linux 用 UTF-8），导致 `assets/video/` 下的中文视频文件名（如"第二展厅：奋力探索 当家作主.mp4"）在 Linux 服务器解压后乱码，且无法用 UTF-8/GBK 逆向恢复。
+  - 改用 **tar.gz 格式**：tar 标准以 UTF-8 存储文件名，所有平台一致，完美保持中文原名称
+  - 输出文件扩展名由 `.zip` 改为 `.tar.gz`
+  - 主方案用 `tar -czf`（Windows 10+ bsdtar / Linux / macOS 通用），降级用 Python `tarfile`
+  - 服务器解压命令：`tar -xzf publish-v*.tar.gz`
+
+## [2.5.6] — 2026-07-09
+
 ## [2.5.5] — 2026-07-06
 
 ### 修复

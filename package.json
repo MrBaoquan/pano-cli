@@ -1,6 +1,6 @@
 {
   "name": "@mrbaoquan/pano-cli",
-  "version": "2.5.5",
+  "version": "2.5.7",
   "description": "krpano 全景项目 CLI 工具 — 一键创建、构建、发布全景漫游",
   "type": "module",
   "bin": {
@@ -19,7 +19,7 @@
     "virtual-tour",
     "cli"
   ],
-  "author": "qz-360",
+  "author": "MrBaoquan",
   "license": "MIT",
   "publishConfig": {
     "access": "public",
